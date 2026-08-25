@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mid-Tier Dial Sheet</title>
@@ -165,6 +166,60 @@ a:focus-visible{outline:2px solid var(--accent); outline-offset:3px; border-radi
   .sheet{grid-template-columns:1fr}
   header.top{padding-top:2rem}
 }
+/* ---------- working the sheet ---------- */
+.bar{
+  position:sticky; top:0; z-index:30; margin:0 -1.15rem 1.4rem; padding:.7rem 1.15rem .75rem;
+  background:color-mix(in srgb,var(--paper) 88%,transparent);
+  backdrop-filter:saturate(180%) blur(12px); -webkit-backdrop-filter:saturate(180%) blur(12px);
+  border-bottom:1px solid var(--rule);
+}
+.barin{max-width:64rem;margin:0 auto;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap}
+.prog{flex:1 1 8rem;min-width:8rem}
+.progtxt{
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.72rem; font-weight:600;
+  letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); margin-bottom:.3rem;
+}
+.progbar{height:5px;border-radius:99px;background:var(--sunk);overflow:hidden}
+.progfill{height:100%;width:0;background:var(--accent);border-radius:99px;transition:width .28s ease}
+.barbtn{
+  font:inherit; font-size:.8rem; font-weight:600; cursor:pointer;
+  padding:.42rem .7rem; border-radius:.55rem; border:1px solid var(--rule-2);
+  background:var(--surface); color:var(--ink-2);
+}
+.barbtn.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.barbtn:disabled{opacity:.4;cursor:default}
+
+.acts{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:1rem;padding-top:.9rem;border-top:1px solid var(--rule)}
+.act{
+  font:inherit; font-size:.83rem; font-weight:600; cursor:pointer; flex:1 1 auto;
+  min-width:5.6rem; min-height:2.85rem; padding:.4rem .55rem; border-radius:.6rem;
+  border:1px solid var(--rule-2); background:var(--surface); color:var(--ink-2);
+}
+.act[data-o="booked"].on{background:var(--good);border-color:var(--good);color:#fff}
+.act[data-o="callback"].on{background:var(--warn);border-color:var(--warn);color:#fff}
+.act[data-o="noanswer"].on,.act[data-o="no"].on{background:var(--ink-2);border-color:var(--ink-2);color:var(--paper)}
+.lead .memo{
+  width:100%; margin-top:.55rem; font:inherit; font-size:.86rem; color:var(--ink);
+  padding:.5rem .6rem; border-radius:.55rem; border:1px solid var(--rule-2);
+  background:var(--sunk); resize:vertical; min-height:2.4rem;
+}
+.lead.done{opacity:.52}
+.lead.done:focus-within,.lead.done:hover{opacity:1}
+.stamp{
+  display:inline-block; margin-left:.5rem; vertical-align:middle;
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.62rem; font-weight:600;
+  letter-spacing:.1em; text-transform:uppercase; padding:.2rem .45rem; border-radius:.35rem;
+  background:var(--sunk); color:var(--ink-2); border:1px solid var(--rule-2);
+}
+.stamp.booked{background:var(--good-soft);color:var(--good);border-color:var(--good)}
+.stamp.callback{background:var(--warn-soft);color:var(--warn);border-color:var(--warn-rule)}
+body.hidedone .lead.done{display:none}
+.allclear{
+  display:none; margin:1.2rem 0; padding:1.1rem 1.2rem; border-radius:.8rem;
+  background:var(--good-soft); border:1px solid var(--good); color:var(--good);
+  font-weight:600;
+}
+body.hidedone .allclear.show{display:block}
 </style>
 
 <div class="wrap">
@@ -179,8 +234,27 @@ a:focus-visible{outline:2px solid var(--accent); outline-offset:3px; border-radi
     <li class="finding"><span class="num">11 / 12</span><p>are already active on at least one social platform</p></li>
   </ul>
 
+  <p class="note"><b>How to work this.</b> Go top to bottom. Tap the number to dial, read the angle before
+  the call connects, and tap one of the four buttons underneath when you hang up. Add a note if anything is
+  worth passing on. It saves on your phone as you go, so you can close it and come back. When you are done,
+  or whenever you stop, tap <b>Send results</b> at the top and send Jack what it gives you.</p>
+
   <p class="note"><b>Why this tier.</b> The top of the list needs everything built from scratch and often cannot pay for it. The bottom is already ranking and will not feel the problem. These twelve are spending effort on marketing that is not converting into search visibility, which is the easiest gap to name on a first call.</p>
 </header>
+
+<div class="bar">
+  <div class="barin">
+    <div class="prog">
+      <div class="progtxt" id="progTxt">0 of 12 called</div>
+      <div class="progbar"><span class="progfill" id="progFill"></span></div>
+    </div>
+    <button class="barbtn" id="btnHide">Hide done</button>
+    <button class="barbtn" id="btnSend">Send results</button>
+    <button class="barbtn" id="btnReset">Reset</button>
+  </div>
+</div>
+
+<div class="allclear" id="allClear">That is the whole list. Tap Send results to pass them back.</div>
 
 <main class="sheet">
 
@@ -347,3 +421,189 @@ a:focus-visible{outline:2px solid var(--accent); outline-offset:3px; border-radi
   <p>Websites, page counts, blog and service page detection, SSL and search position were read live on 24 August 2026. Ratings and review counts come from public search results and are best effort, so quote them only where a card shows one. Social accounts marked in a check box could not be confirmed as belonging to the business, usually because a similarly named company in another state matched first. Everything unverified is labelled rather than guessed.</p>
 </footer>
 </div>
+
+<script>
+/* Working layer for the dial sheet.
+
+   The cards above are plain HTML, so nothing here edits them by hand: the
+   script walks every article, reads the rank and the name already printed in
+   it, and hangs the buttons off that. Add or remove a lead upstairs and this
+   keeps working with no change down here.
+
+   Outcomes live in this browser only. There is no account and no server to
+   post to, so Send results hands the summary to the phone's own share sheet
+   and falls back to the clipboard. */
+(function(){
+  'use strict';
+
+  var KEY = 'wing.dialsheet.v1';
+  var OUTCOMES = [
+    { o:'noanswer', label:'No answer' },
+    { o:'callback', label:'Call back' },
+    { o:'booked',   label:'Booked' },
+    { o:'no',       label:'Not interested' }
+  ];
+  var WORD = { noanswer:'no answer', callback:'call back', booked:'BOOKED', no:'not interested' };
+
+  var state = load();
+  function load(){
+    try { return JSON.parse(localStorage.getItem(KEY) || '{}') || {}; }
+    catch (e){ return {}; }
+  }
+  function save(){
+    try { localStorage.setItem(KEY, JSON.stringify(state)); }
+    catch (e){ /* private mode: the sheet still works, it just will not persist */ }
+  }
+
+  var cards = [].slice.call(document.querySelectorAll('article.lead'));
+  var leads = cards.map(function(el, i){
+    var rankEl = el.querySelector('.rank');
+    var nameEl = el.querySelector('h2');
+    var telEl  = el.querySelector('a.tel');
+    return {
+      el: el,
+      id: 'l' + (rankEl ? rankEl.textContent.trim() : (i + 1)),
+      rank: rankEl ? rankEl.textContent.trim() : String(i + 1),
+      name: nameEl ? nameEl.textContent.trim() : ('Lead ' + (i + 1)),
+      phone: telEl ? telEl.textContent.trim() : '',
+      nameEl: nameEl
+    };
+  });
+
+  /* ---- build the controls into every card ---- */
+  leads.forEach(function(L){
+    var row = document.createElement('div');
+    row.className = 'acts';
+    OUTCOMES.forEach(function(x){
+      var b = document.createElement('button');
+      b.className = 'act';
+      b.type = 'button';
+      b.dataset.o = x.o;
+      b.textContent = x.label;
+      b.setAttribute('aria-label', x.label + ' for ' + L.name);
+      b.addEventListener('click', function(){ mark(L, x.o); });
+      row.appendChild(b);
+    });
+
+    var memo = document.createElement('textarea');
+    memo.className = 'memo';
+    memo.rows = 1;
+    memo.placeholder = 'Note for Jack, optional';
+    memo.setAttribute('aria-label', 'Note about ' + L.name);
+    memo.addEventListener('input', function(){
+      var s = state[L.id] || (state[L.id] = {});
+      s.note = memo.value.trim();
+      if (!s.note) delete s.note;
+      if (!s.o && !s.note) delete state[L.id];
+      save();
+    });
+
+    L.el.appendChild(row);
+    L.el.appendChild(memo);
+    L.row = row;
+    L.memo = memo;
+
+    var stamp = document.createElement('span');
+    stamp.className = 'stamp';
+    stamp.style.display = 'none';
+    if (L.nameEl) L.nameEl.appendChild(stamp);
+    L.stamp = stamp;
+  });
+
+  function mark(L, o){
+    var s = state[L.id] || (state[L.id] = {});
+    if (s.o === o){ delete s.o; }            /* tapping again undoes it */
+    else { s.o = o; s.at = Date.now(); }
+    if (!s.o && !s.note) delete state[L.id];
+    save();
+    paint(L);
+    tally();
+  }
+
+  function paint(L){
+    var s = state[L.id] || {};
+    L.row.querySelectorAll('.act').forEach(function(b){
+      b.classList.toggle('on', b.dataset.o === s.o);
+    });
+    L.el.classList.toggle('done', !!s.o);
+    if (s.note && L.memo.value !== s.note) L.memo.value = s.note;
+    if (s.o){
+      L.stamp.textContent = WORD[s.o];
+      L.stamp.className = 'stamp ' + s.o;
+      L.stamp.style.display = '';
+    } else {
+      L.stamp.style.display = 'none';
+    }
+  }
+
+  function tally(){
+    var done = leads.filter(function(L){ return (state[L.id] || {}).o; }).length;
+    var pct = leads.length ? Math.round(done / leads.length * 100) : 0;
+    document.getElementById('progTxt').textContent =
+      done + ' of ' + leads.length + ' called' +
+      (done === leads.length && done ? ', done' : '');
+    document.getElementById('progFill').style.width = pct + '%';
+    document.getElementById('btnSend').disabled = !done;
+    document.getElementById('allClear').classList.toggle('show', done === leads.length && done > 0);
+  }
+
+  /* ---- results ---- */
+  function summary(){
+    var done = leads.filter(function(L){ return (state[L.id] || {}).o; });
+    var order = { booked:0, callback:1, noanswer:2, no:3 };
+    done.sort(function(a,b){
+      return order[state[a.id].o] - order[state[b.id].o] || (+a.rank) - (+b.rank);
+    });
+    var lines = ['Dial sheet: the middle twelve',
+                 new Date().toLocaleDateString('en-US',
+                   {weekday:'short', month:'short', day:'numeric'}),
+                 done.length + ' of ' + leads.length + ' called', ''];
+    var last = '';
+    done.forEach(function(L){
+      var s = state[L.id];
+      if (s.o !== last){
+        last = s.o;
+        lines.push(WORD[s.o].toUpperCase());
+      }
+      lines.push('  ' + L.name + (L.phone ? '  ' + L.phone : '') +
+                 (s.note ? '\n    ' + s.note : ''));
+    });
+    var left = leads.length - done.length;
+    if (left) lines.push('', left + ' not called yet');
+    return lines.join('\n');
+  }
+
+  document.getElementById('btnSend').addEventListener('click', async function(){
+    var text = summary();
+    var btn = this;
+    if (navigator.share){
+      try { await navigator.share({ title:'Dial sheet results', text:text }); return; }
+      catch (e){ if (e && e.name === 'AbortError') return; }
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      btn.textContent = 'Copied';
+      setTimeout(function(){ btn.textContent = 'Send results'; }, 1600);
+    } catch (e){
+      window.prompt('Copy this and send it to Jack', text);
+    }
+  });
+
+  document.getElementById('btnHide').addEventListener('click', function(){
+    var on = document.body.classList.toggle('hidedone');
+    this.classList.toggle('on', on);
+    this.textContent = on ? 'Show all' : 'Hide done';
+  });
+
+  document.getElementById('btnReset').addEventListener('click', function(){
+    if (!window.confirm('Clear every outcome and note on this sheet?')) return;
+    state = {};
+    save();
+    leads.forEach(function(L){ L.memo.value = ''; paint(L); });
+    tally();
+  });
+
+  leads.forEach(paint);
+  tally();
+})();
+</script>
